@@ -66,20 +66,35 @@ def portDeclare(inText, portArr):
 
        return list as : (port, [range])
     """
+    portPat = portArr
+    if isinstance(portArr, list):
+        portPat = "|".join([f"(?:{port})" for port in portArr])
+
+    portPat = "(" + portPat + ")"
+
     port_definition = re.compile(
-        r'\b' + portArr + r''' (\s+(wire|reg)\s+)* (\s*signed\s+)*  (\s*\[.*?:.*?\]\s*)*
+        r'\b' + portPat + r''' (\s+(wire|reg)\s+)* (\s*signed\s+)*  (\s*\[.*?:.*?\]\s*)*
         (?P<port_list>.*?)
         (?= \binput\b | \boutput\b | \binout\b | ; | \) )
         ''',
         re.VERBOSE | re.MULTILINE | re.DOTALL
     )
 
-    pList = port_definition.findall(inText)
+    # pList = port_definition.findall(inText)
+    pList = port_definition.finditer(inText)
 
     t = []
+    last_line_num = None
     for ls in pList:
-        if len(ls) >= 2:
-            t = t + portDic(ls[-2:])
+        line_num = inText[:ls.start()].count('\n')
+        ls = tuple(['' if x is None else x for x in tuple(ls.groups())])
+        if len(ls) >= 3:
+            v = portDic(ls[-2:])[0] + (ls[0],line_num)
+            # add empty line for better visulization
+            if last_line_num is not None and line_num != last_line_num + 1:
+                t += [('','','empty', 0)]
+            last_line_num = line_num
+            t = t + [v]
     return t
 
 
@@ -108,8 +123,8 @@ def formatPort(AllPortList, isPortRange=1):
         strList = []
         for pl in AllPortList:
             if pl != []:
-                str = ',\n'.join([' ' * 4 + '.' + i[0].ljust(l3)
-                                  + '( ' + (i[0].ljust(l1)) + ' )' for i in pl])
+                # str = ',\n'.join([' ' * 4 + '.' + i[0].ljust(l3) + '( ' + (i[0].ljust(l1)) + ' )' for i in pl])
+                str = '\n'.join([(' ' * 4 + '.' + i[0].ljust(l3) + '( ' + (i[0].ljust(l1)) + ' )' + (' ' if i is pl[-1] else ',') + " // " + i[2] + i[1]) if i[2] != "empty" else "" for i in pl])
                 strList = strList + [str]
 
         str = ',\n\n'.join(strList)
@@ -121,8 +136,7 @@ def formatDeclare(PortList, portArr, initial=""):
     str = ''
 
     if PortList != []:
-        str = '\n'.join([portArr.ljust(
-            4) + '  ' + (i[1] + min(len(i[1]), 1) * '  ' + i[0]) + ';' for i in PortList])
+        str = '\n'.join([(portArr.ljust(4) + '  ' + (i[1] + min(len(i[1]), 1) * '  ' + i[0]) + ';') if i[2] != "empty" else "" for i in PortList])
     return str
 
 
@@ -133,7 +147,7 @@ def formatPara(ParaList):
         s = '\n'.join(ParaList)
         # pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*[;,)]'
         pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*(?:[;,]|(?:[)][)\s]*(?=\()))'
-        
+
         p = re.findall(pat, s)
 
         l1 = max([len(i[0]) for i in p])
@@ -142,7 +156,7 @@ def formatPara(ParaList):
                              % (i[0].ljust(l1 + 1), i[1].ljust(l2))
                              for i in p])
         paraDef = '#(\n' + ',\n'.join(['    .' + i[0].ljust(l1 + 1)
-                                       + '( ' + i[1].ljust(l2) + ' )' for i in p]) + ')\n'
+                                       + '( ' + i[1].ljust(l2) + ' )' for i in p]) + '\n) '
     return paraDec, paraDef
 
 
@@ -168,15 +182,18 @@ def writeTestBench(input_file):
     paraDec, paraDef = formatPara(paraList)
 
     ioPadAttr = ['input', 'output', 'inout']
-    input = portDeclare(inText, ioPadAttr[0])
-    output = portDeclare(inText, ioPadAttr[1])
-    inout = portDeclare(inText, ioPadAttr[2])
+    # input = portDeclare(inText, ioPadAttr[0])
+    # output = portDeclare(inText, ioPadAttr[1])
+    # inout = portDeclare(inText, ioPadAttr[2])
+    # portList = formatPort([input, output, inout])
+    # input = formatDeclare(input, 'reg')
+    # output = formatDeclare(output, 'wire')
+    # inout = formatDeclare(inout, 'wire')
 
-    portList = formatPort([input, output, inout])
-    input = formatDeclare(input, 'reg')
-    output = formatDeclare(output, 'wire')
-    inout = formatDeclare(inout, 'wire')
-
+    # declare in order
+    allPort = portDeclare(inText, ioPadAttr)
+    portList = formatPort([allPort, [], []])
+    portDecl = formatDeclare(allPort, 'wire')
     # write Instance
 
     # module_parameter_port_list
@@ -184,10 +201,11 @@ def writeTestBench(input_file):
         print("// %s Parameters\n%s\n" % (name, paraDec))
 
     # list_of_port_declarations
-    print("// %s Inputs\n%s\n" % (name, input))
-    print("// %s Outputs\n%s\n" % (name, output))
-    if(inout != ''):
-        print("// %s Bidirs\n%s\n" % (name, inout))
+    # print("// %s Inputs\n%s\n" % (name, input))
+    # print("// %s Outputs\n%s\n" % (name, output))
+    # if(inout != ''):
+    #     print("// %s Bidirs\n%s\n" % (name, inout))
+    print("//---- %s ports ----\n%s\n" % (name, portDecl))
 
     # UUT
     print("%s %s u_%s (\n%s\n);" % (name, paraDef, name, portList))
@@ -195,3 +213,4 @@ def writeTestBench(input_file):
 
 if __name__ == '__main__':
     writeTestBench(sys.argv[1])
+
