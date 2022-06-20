@@ -54,8 +54,8 @@ def findName(inText):
 
 def paraDeclare(inText, portArr):
     """ find parameter declare """
-    pat = r'\s' + portArr + r'\s[\w\W]*?[;,)]'
-    ParaList = re.findall(pat, inText)
+    pat = r'\s' + portArr + r'\s[\w\W]*?(?:[;,]|(?:[)][)\s]*(?=\()))'
+    ParaList = re.findall(pat, inText, re.MULTILINE)
 
     return ParaList
 
@@ -131,7 +131,9 @@ def formatPara(ParaList):
     paraDef = ''
     if ParaList != []:
         s = '\n'.join(ParaList)
-        pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*[;,)]'
+        # pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*[;,)]'
+        pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*(?:[;,]|(?:[)][)\s]*(?=\()))'
+        
         p = re.findall(pat, s)
 
         l1 = max([len(i[0]) for i in p])
