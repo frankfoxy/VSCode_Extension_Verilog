@@ -27,6 +27,7 @@ Usage:
 import re
 import sys
 import chardet
+import pyperclip
 
 
 def delComment(Text):
@@ -89,10 +90,10 @@ def portDeclare(inText, portArr):
         line_num = inText[:ls.start()].count('\n')
         ls = tuple(['' if x is None else x for x in tuple(ls.groups())])
         if len(ls) >= 3:
-            v = portDic(ls[-2:])[0] + (ls[0],line_num)
+            v = portDic(ls[-2:])[0] + (ls[0], line_num)
             # add empty line for better visulization
             if last_line_num is not None and line_num != last_line_num + 1:
-                t += [('','','empty', 0)]
+                t += [('', '', 'empty', 0)]
             last_line_num = line_num
             t = t + [v]
     return t
@@ -124,7 +125,8 @@ def formatPort(AllPortList, isPortRange=1):
         for pl in AllPortList:
             if pl != []:
                 # str = ',\n'.join([' ' * 4 + '.' + i[0].ljust(l3) + '( ' + (i[0].ljust(l1)) + ' )' for i in pl])
-                str = '\n'.join([(' ' * 4 + '.' + i[0].ljust(l3) + '( ' + (i[0].ljust(l1)) + ' )' + (' ' if i is pl[-1] else ',') + " // " + i[2] + i[1]) if i[2] != "empty" else "" for i in pl])
+                str = '\n'.join([(' ' * 4 + '.' + i[0].ljust(l3) + '( ' + (i[0].ljust(l1)) + ' )' + (
+                    ' ' if i is pl[-1] else ',') + " // " + i[2] + i[1]) if i[2] != "empty" else "" for i in pl])
                 strList = strList + [str]
 
         str = ',\n\n'.join(strList)
@@ -136,7 +138,8 @@ def formatDeclare(PortList, portArr, initial=""):
     str = ''
 
     if PortList != []:
-        str = '\n'.join([(portArr.ljust(4) + '  ' + (i[1] + min(len(i[1]), 1) * '  ' + i[0]) + ';') if i[2] != "empty" else "" for i in PortList])
+        str = '\n'.join([(portArr.ljust(4) + '  ' + (i[1] + min(len(i[1]), 1)
+                        * '  ' + i[0]) + ';') if i[2] != "empty" else "" for i in PortList])
     return str
 
 
@@ -197,20 +200,25 @@ def writeTestBench(input_file):
     # write Instance
 
     # module_parameter_port_list
+    output_str = ""
     if(paraDec != ''):
-        print("// %s Parameters\n%s\n" % (name, paraDec))
+        output_str += "// %s Parameters\n%s\n" % (name, paraDec)
 
     # list_of_port_declarations
     # print("// %s Inputs\n%s\n" % (name, input))
     # print("// %s Outputs\n%s\n" % (name, output))
     # if(inout != ''):
-    #     print("// %s Bidirs\n%s\n" % (name, inout))
-    print("//---- %s ports ----\n%s\n" % (name, portDecl))
+    #     print("// %s Bidirs\n%s\n" % (name, inout))o system
+    output_str += "//---- %s ports ----\n%s\n" % (name, portDecl)
 
     # UUT
-    print("%s %s u_%s (\n%s\n);" % (name, paraDef, name, portList))
+    output_str += "%s %s u_%s (\n%s\n);" % (name, paraDef, name, portList)
+
+    print(output_str)
+    print("------------------------------------------------")
+    print(" * Contents also Copy to system clipboard *")
+    pyperclip.copy(output_str)
 
 
 if __name__ == '__main__':
     writeTestBench(sys.argv[1])
-
