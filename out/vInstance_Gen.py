@@ -34,8 +34,8 @@ def delComment(Text):
     """ removed comment """
     single_line_comment = re.compile(r"//(.*)$", re.MULTILINE)
     multi_line_comment = re.compile(r"/\*(.*?)\*/", re.DOTALL)
-    Text = multi_line_comment.sub('\n', Text)
-    Text = single_line_comment.sub('\n', Text)
+    Text = multi_line_comment.sub('', Text)
+    Text = single_line_comment.sub('', Text)
     return Text
 
 
@@ -147,19 +147,19 @@ def formatPara(ParaList):
     paraDec = ''
     paraDef = ''
     if ParaList != []:
-        s = '\n'.join(ParaList)
+        s = '|'.join(ParaList) + '|'
         # pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*[;,)]'
-        pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([\w\W]*?)\s*(?:[;,]|(?:[)][)\s]*(?=\()))'
+        pat = r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*([^|]*)\s*(?:[;,)]\s*\|)'
 
         p = re.findall(pat, s)
 
         l1 = max([len(i[0]) for i in p])
         l2 = max([len(i[1]) for i in p])
         paraDec = '\n'.join(['parameter %s = %s;'
-                             % (i[0].ljust(l1 + 1), i[1].ljust(l2))
+                             % (i[0].strip().ljust(l1 + 1), i[1].strip().ljust(l2))
                              for i in p])
-        paraDef = '#(\n' + ',\n'.join(['    .' + i[0].ljust(l1 + 1)
-                                       + '( ' + i[1].ljust(l2) + ' )' for i in p]) + '\n) '
+        paraDef = '#(\n' + ',\n'.join(['    .' + i[0].strip().ljust(l1 + 1)
+                                       + '( ' + i[1].strip().ljust(l2) + ' )' for i in p]) + '\n) '
     return paraDec, paraDef
 
 
