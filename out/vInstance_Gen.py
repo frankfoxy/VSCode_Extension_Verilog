@@ -34,8 +34,8 @@ def delComment(Text):
     """ removed comment """
     single_line_comment = re.compile(r"//(.*)$", re.MULTILINE)
     multi_line_comment = re.compile(r"/\*(.*?)\*/", re.DOTALL)
-    Text = multi_line_comment.sub('', Text)
     Text = single_line_comment.sub('', Text)
+    Text = multi_line_comment.sub('', Text)
     return Text
 
 
@@ -74,7 +74,7 @@ def portDeclare(inText, portArr):
     portPat = "(" + portPat + ")"
 
     port_definition = re.compile(
-        r'\b' + portPat + r''' (\s+(wire|reg)\s+)* (\s*signed\s+)*  (\s*\[.*?:.*?\]\s*)*
+        r'\b' + portPat + r''' (\s+(wire|reg|logic)\s+)* (\s*signed\s+)*  (\s*\[.*?:.*?\]\s*)*
         (?P<port_list>.*?)
         (?= \binput\b | \boutput\b | \binout\b | ; | \) )
         ''',
