@@ -27,6 +27,17 @@ Usage:
 import re
 import sys
 import chardet
+import pyperclip
+
+import io
+
+
+def print_to_str(*args, **kwargs):
+    output = io.StringIO()
+    print(*args, file=output, **kwargs)
+    contents = output.getvalue()
+    output.close()
+    return contents
 
 
 def delComment(Text):
@@ -142,13 +153,42 @@ def formatPort(AllPortList, isPortRange=1):
     return str
 
 
+def findPort(PortList, port_type, name_pat):
+    ports = [x for x in PortList if ((x[2] != "empty" and x[2] == port_type) or port_type == "") and re.search(name_pat, x[0], re.IGNORECASE) is not None]
+    return ports[0][0] if len(ports) >= 1 else ""
+
+
+def formatDeclareEx(PortList, PortTypeList, portArrList, initial_list=[]):
+    str = ""
+    initial_list = [" = " + x if x != "" else x for x in initial_list]
+
+    if PortList != []:
+        str = "\n".join(
+            [
+                (
+                    (
+                        portArrList[PortTypeList.index(i[2])].ljust(4)
+                        + "  "
+                        + (i[1] + min(len(i[1]), 1) * "  " + i[0])
+                        + initial_list[PortTypeList.index(i[2])]
+                        + ";"
+                    )
+                    if i[2] != "empty"
+                    else ""
+                )
+                for i in PortList
+            ]
+        )
+    return str
+
+
 def formatDeclare(PortList, portArr, initial=""):
     str = ""
     if initial != "":
         initial = " = " + initial
 
     if PortList != []:
-        str = "\n".join([(portArr.ljust(4) + "  " + (i[1] + min(len(i[1]), 1) * "  " + i[0]) + ";") if i[2] != "empty" else "" for i in PortList])
+        str = "\n".join([(portArr.ljust(4) + "  " + (i[1] + min(len(i[1]), 1) * "  " + i[0]) + initial + ";") if i[2] != "empty" else "" for i in PortList])
     return str
 
 
@@ -168,6 +208,9 @@ def formatPara(ParaList):
         paraDefStr = "\n".join(["    ." + i[0].strip().ljust(l1 + 1) + "( " + i[0].strip().ljust(l2) + " ),  // " + i[1].strip() for i in p[:-1]])
         paraDefStr += "\n    ." + p[-1][0].strip().ljust(l1 + 1) + "( " + p[-1][0].strip().ljust(l2) + " )   // " + p[-1][1].strip()  # last one without comma
         paraDef = "#(\n" + paraDefStr + "\n) "
+
+    # preDec = "\n".join(["parameter %s = %s;\n" % ("PERIOD".ljust(l1 + 1), "10".ljust(l2))])
+    # paraDec = preDec + paraDec
     return paraDec, paraDef
 
 
@@ -193,47 +236,62 @@ def writeTestBench(input_file):
     paraDec, paraDef = formatPara(paraList)
 
     ioPadAttr = ["input", "output", "inout"]
-    input = portDeclare(inText, ioPadAttr[0])
-    output = portDeclare(inText, ioPadAttr[1])
-    inout = portDeclare(inText, ioPadAttr[2])
+    # input = portDeclare(inText, ioPadAttr[0])
+    # output = portDeclare(inText, ioPadAttr[1])
+    # inout = portDeclare(inText, ioPadAttr[2])
 
-    portList = formatPort([input, output, inout])
-    input = formatDeclare(input, "reg", "0")
-    output = formatDeclare(output, "wire")
-    inout = formatDeclare(inout, "wire")
+    # portList = formatPort([input, output, inout])
+    # input = formatDeclare(input, "reg", "0")
+    # output = formatDeclare(output, "wire")
+    # inout = formatDeclare(inout, "wire")
+
+    allPort = portDeclare(inText, ioPadAttr)
+    portList = formatPort([allPort, [], []])
+    portDecl = formatDeclareEx(allPort, ioPadAttr, ["reg", "wire", "wire"], ["0", "", ""])
 
     # write testbench
+    output_str = ""
     timescale = "`timescale  1ns / 1ps\n"
-    print("//~ `New testbench")
-    print(timescale)
-    print("module tb_%s;\n" % name)
+    output_str += print_to_str(timescale)
+    output_str += print_to_str("module tb_%s;\n" % name)
 
+    output_str += "  parameter CLK_PERIOD = 10;"
     # module_parameter_port_list
     if paraDec != "":
-        print("// %s Parameters\n%s\n" % (name, paraDec))
+        output_str += print_to_str("// %s Parameters\n%s\n" % (name, paraDec))
 
     # list_of_port_declarations
-    print("// %s Inputs\n%s\n" % (name, input))
-    print("// %s Outputs\n%s\n" % (name, output))
-    if inout != "":
-        print("// %s Bidirs\n%s\n" % (name, inout))
+    # output_str += print_to_str("// %s Inputs\n%s\n" % (name, input))
+    # output_str += print_to_str("// %s Outputs\n%s\n" % (name, output))
+    # if inout != "":
+    #     output_str += print_to_str("// %s Bidirs\n%s\n" % (name, inout))
+    output_str += print_to_str("// %s ports\n%s\n" % (name, portDecl))
 
-    # print clock & rst
-    clk = """  initial forever #(PERIOD / 2) clk = ~clk;  """
-    rst = """  initial #(PERIOD * 2) rstn = 1;  """
-    print("%s\n%s\n" % (clk, rst))
+    # output_str += print_to_str clock & rst
+    clk_name = findPort(allPort, "input", r"[\w_]*clk[\w_]*|[\w_]*clock[\w_]*")
+    if clk_name != "":
+        output_str += print_to_str("""  initial forever #(CLK_PERIOD / 2) %s = ~%s;""" % (clk_name, clk_name))
+    rst_name = findPort(allPort, "input", r"[\w_]*rst[\w_]*|[\w_]*reset[\w_]*")
+    if rst_name != "":
+        output_str += print_to_str("""  initial #(CLK_PERIOD * 2) %s = 1;\n""" % rst_name)
+    # print(clk_name, rst_name)
 
     # UUT
-    print("%s %s u_%s (\n%s\n);" % (name, paraDef, name, portList))
+    output_str += print_to_str("%s %s u_%s (\n%s\n);" % (name, paraDef, name, portList))
 
-    # print operation
+    # output_str += print_to_str operation
     operation = """
   initial begin
       $stop(0);
   end
 """
-    print(operation)
-    print("endmodule")
+    output_str += print_to_str(operation)
+    output_str += print_to_str("endmodule")
+
+    print(output_str)
+    print("------------------------------------------------")
+    print(" * Contents also Copy to system clipboard *")
+    pyperclip.copy(output_str)
 
 
 if __name__ == "__main__":
