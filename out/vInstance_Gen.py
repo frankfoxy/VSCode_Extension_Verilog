@@ -76,7 +76,7 @@ def portDeclare(inText, portArr):
     port_definition = re.compile(
         r"\b"
         + portPat
-        + r""" (\s+(wire|reg|logic)\s+)* (\s*signed\s+)*  (\s*\[.*?:.*?\]\s*)*
+        + r""" (\s+(wire|reg|logic|int|integer|real)\s+)* (\s*signed\s+)*  (\s*\[.*?:.*?\]\s*)*
         (?P<port_list>.*?)
         (?= \binput\b | \boutput\b | \binout\b | ; | \) )
         """,
