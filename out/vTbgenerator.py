@@ -44,8 +44,10 @@ def delComment(Text):
     """removed comment"""
     single_line_comment = re.compile(r"//(.*)$", re.MULTILINE)
     multi_line_comment = re.compile(r"/\*(.*?)\*/", re.DOTALL)
-    Text = multi_line_comment.sub("\n", Text)
-    Text = single_line_comment.sub("\n", Text)
+    multi_line_desc_comment = re.compile(r"\(\*(.*?)\*\)", re.DOTALL)
+    Text = multi_line_comment.sub("", Text)
+    Text = single_line_comment.sub("", Text)
+    Text = multi_line_desc_comment.sub("", Text)
     return Text
 
 
@@ -102,12 +104,12 @@ def portDeclare(inText, portArr):
         line_num = inText[: ls.start()].count("\n")
         ls = tuple(["" if x is None else x for x in tuple(ls.groups())])
         if len(ls) >= 3:
-            v = portDic(ls[-2:])[0] + (ls[0], line_num)
+            v = [x + (ls[0], line_num) for x in portDic(ls[-2:])]
             # add empty line for better visulization
             if last_line_num is not None and line_num != last_line_num + 1:
                 t += [("", "", "empty", 0)]
             last_line_num = line_num
-            t = t + [v]
+            t = t + v
     return t
 
 
