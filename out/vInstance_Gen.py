@@ -32,13 +32,12 @@ import pyperclip
 
 def delComment(Text):
     """removed comment"""
-    single_line_comment = re.compile(r"//(.*)$", re.MULTILINE)
-    multi_line_comment = re.compile(r"/\*(.*?)\*/", re.DOTALL)
-    multi_line_desc_comment = re.compile(r"\(\*(.*?)\*\)", re.DOTALL)
-    Text = multi_line_comment.sub("", Text)
-    Text = single_line_comment.sub("", Text)
-    Text = multi_line_desc_comment.sub("", Text)
-    return Text
+    # pattern = re.compile(r'^\s*//[^\r\n]*[\r\n]|//.*?$|/\*.*?\*/|"(?:\\.|[^\\"])*"', re.DOTALL | re.MULTILINE)
+    pattern = re.compile(
+        r'^\s*`pragma\s+protect\s+begin_protected.*`pragma protect end_protected|//.*?$|/\*.*?\*/|"(?:\\.|[^\\"])*"', re.DOTALL | re.MULTILINE
+    )
+   
+    return re.sub(pattern, lambda m: "" if m.group(0).startswith("/") else m.group(0), Text)
 
 
 def delBlock(Text):
